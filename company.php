@@ -99,9 +99,19 @@ $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
                         <div class="card-body">
                             <p class="text-muted small mb-3">If MiniMines secures 100% of this OEM's waste battery feed based on their <?= number_format($company['target_tons'], 2) ?> Tons target:</p>
                             <ul class="list-unstyled lh-lg">
-                                <li><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="text-dark">EPR Certificates:</strong> <?= htmlspecialchars($aiData['potential']['epr_certificates'] ?? 'N/A') ?></li>
-                                <li><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="text-dark">High-Purity Metals (HHM™):</strong> <?= htmlspecialchars($aiData['potential']['recovery_metals'] ?? 'N/A') ?></li>
-                                <li><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="text-dark">HHM™ Efficiency Offset:</strong> <?= htmlspecialchars($aiData['potential']['offset_dependency'] ?? 'N/A') ?></li>
+                                <?php
+                                    $eprCert = $aiData['potential']['epr_certificates'] ?? 'N/A';
+                                    $eprCert = is_array($eprCert) ? implode(", ", $eprCert) : $eprCert;
+                                    
+                                    $recMetals = $aiData['potential']['recovery_metals'] ?? 'N/A';
+                                    $recMetals = is_array($recMetals) ? implode(", ", $recMetals) : $recMetals;
+                                    
+                                    $offsetDep = $aiData['potential']['offset_dependency'] ?? 'N/A';
+                                    $offsetDep = is_array($offsetDep) ? implode(", ", $offsetDep) : $offsetDep;
+                                ?>
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="text-dark">EPR Certificates:</strong> <?= htmlspecialchars($eprCert) ?></li>
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="text-dark">High-Purity Metals (HHM™):</strong> <?= htmlspecialchars($recMetals) ?></li>
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i> <strong class="text-dark">HHM™ Efficiency Offset:</strong> <?= htmlspecialchars($offsetDep) ?></li>
                             </ul>
                         </div>
                     </div>
