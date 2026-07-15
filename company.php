@@ -183,17 +183,6 @@ $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0 border-start border-4 border-success">
-                <div class="card-header bg-transparent border-bottom pt-4 pb-3">
-                    <h5 class="mb-0 text-success"><i class="bi bi-envelope-check me-2"></i>Recommended MiniMines Pitch</h5>
-                </div>
-                <div class="card-body">
-                    <div class="p-4 bg-light rounded-3 text-dark fst-italic lh-lg">
-                        "<?= nl2br(htmlspecialchars($aiData['pitch'] ?? 'Generating optimized pitch script...')) ?>"
-                    </div>
-                </div>
-            </div>
-            <br>
         </div>
     </div>
     

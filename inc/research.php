@@ -115,7 +115,6 @@ Output a JSON object strictly matching this schema:
     \"recovery_metals\": \"Nickel/Cobalt recovery estimates\",
     \"offset_dependency\": \"Reduction in raw material import dependency\"
   },
-  \"pitch\": \"A highly customized, professional, 1-paragraph email script from the MiniMines Sourcing Team to a key contact at this company, pitching our HHM process and mentioning their target tons.\",
   \"contacts\": [
     {
       \"name\": \"Name of executive or key person\",
