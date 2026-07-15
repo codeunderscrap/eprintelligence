@@ -134,6 +134,12 @@ Output a JSON object strictly matching this schema:
   \"sourcing_sector\": \"e.g., EV 2W, EV 4W, Consumer Electronics\",
   \"chemistry\": \"e.g., NMC 532, LFP\",
   \"classification\": \"e.g., Low-Hanging Fruit, High-Value Target\",
+  \"company_overview\": {
+    \"core_business\": \"Brief description of what the company actually manufactures or does (e.g., EV 2-Wheeler Manufacturer, Mobile OEM).\",
+    \"key_products\": \"Main products or brands they make.\",
+    \"battery_usage\": \"How and where they use batteries in their business context.\",
+    \"scale\": \"Their operational scale if known (Regional, National, Global, etc.).\"
+  },
   \"strategic_summary\": \"A short paragraph analyzing their EPR liabilities, current partnerships, and urgency.\",
   \"potential\": {
     \"epr_certificates\": \"Calculated tons of certificates generated\",
@@ -241,6 +247,21 @@ Output a JSON object strictly matching this schema:
 
     $finalResult = json_decode($resultJsonStr, true);
 
+    // Hard filter to kill LLM hallucinations like '\NAS\'
+    if (isset($finalResult['contacts']) && is_array($finalResult['contacts'])) {
+        foreach ($finalResult['contacts'] as $key => $contact) {
+            $name = $contact['name'] ?? '';
+            // If name has a backslash or is too short or is a known weird code, remove it
+            if (strpos($name, '\\') !== false || strlen(trim($name)) < 3 || preg_match('/^[A-Z]{2,4}$/', trim($name))) {
+                unset($finalResult['contacts'][$key]);
+            }
+        }
+        $finalResult['contacts'] = array_values($finalResult['contacts']); // Re-index array
+    }
+    
+    // Re-encode for DB
+    $resultJsonStrForDb = json_encode($finalResult);
+
     // Save to cache if successful
     if ($finalResult && !isset($finalResult['error'])) {
         $stmt = $pdo->prepare("
@@ -248,7 +269,7 @@ Output a JSON object strictly matching this schema:
             VALUES (?, ?) 
             ON DUPLICATE KEY UPDATE research_data = VALUES(research_data)
         ");
-        $stmt->execute([$companyId, $resultJsonStr]);
+        $stmt->execute([$companyId, $resultJsonStrForDb]);
     }
 
     return $finalResult;

@@ -80,6 +80,34 @@ $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
                 </div>
             </div>
 
+            <?php if (isset($aiData['company_overview'])): ?>
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-transparent border-bottom pt-4 pb-3">
+                    <h5 class="mb-0 text-primary"><i class="bi bi-building me-2"></i>Company Overview & Operations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-3 border-end">
+                            <strong class="text-muted small d-block mb-1">Core Business</strong>
+                            <span><?= htmlspecialchars($aiData['company_overview']['core_business'] ?? 'N/A') ?></span>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <strong class="text-muted small d-block mb-1">Key Products</strong>
+                            <span><?= htmlspecialchars($aiData['company_overview']['key_products'] ?? 'N/A') ?></span>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <strong class="text-muted small d-block mb-1">Battery Usage Context</strong>
+                            <span><?= htmlspecialchars($aiData['company_overview']['battery_usage'] ?? 'N/A') ?></span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong class="text-muted small d-block mb-1">Operational Scale</strong>
+                            <span><?= htmlspecialchars($aiData['company_overview']['scale'] ?? 'N/A') ?></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="row g-4 mb-4">
                 <div class="col-md-7">
                     <div class="card shadow-sm border-0 h-100">
