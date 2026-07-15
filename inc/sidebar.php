@@ -18,6 +18,19 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 <i class="bi bi-cloud-arrow-up"></i> Upload Dataset
             </a>
         </li>
+        
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+        <li>
+            <a href="users.php" class="<?= $currentPage == 'users.php' ? 'active' : '' ?>">
+                <i class="bi bi-people"></i> Manage Users
+            </a>
+        </li>
+        <li>
+            <a href="settings.php" class="<?= $currentPage == 'settings.php' ? 'active' : '' ?>">
+                <i class="bi bi-key"></i> API Settings
+            </a>
+        </li>
+        <?php endif; ?>
     </ul>
     
     <div class="sidebar-footer">

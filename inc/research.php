@@ -14,10 +14,26 @@ function getCompanyResearch($pdo, $company, $forceRefresh = false) {
         }
     }
 
-    $tavilyKey = $_ENV['TAVILY_API_KEY'] ?? '';
-    $groqKey = $_ENV['GROQ_API_KEY'] ?? '';
-    $geminiKey = $_ENV['GEMINI_API_KEY'] ?? '';
-    $firecrawlKey = $_ENV['FIRECRAWL_API_KEY'] ?? '';
+    $tavilyKey = '';
+    $groqKey = '';
+    $geminiKey = '';
+    $firecrawlKey = '';
+
+    // Phase 0: Fetch keys from DB
+    $stmtKey = $pdo->prepare("SELECT service_name, api_key FROM api_keys");
+    $stmtKey->execute();
+    while ($rowK = $stmtKey->fetch(PDO::FETCH_ASSOC)) {
+        if ($rowK['service_name'] === 'Tavily') $tavilyKey = $rowK['api_key'];
+        if ($rowK['service_name'] === 'Groq') $groqKey = $rowK['api_key'];
+        if ($rowK['service_name'] === 'Gemini') $geminiKey = $rowK['api_key'];
+        if ($rowK['service_name'] === 'Firecrawl') $firecrawlKey = $rowK['api_key'];
+    }
+
+    // Function to log API usage
+    $logUsage = function($service) use ($pdo) {
+        $stmtU = $pdo->prepare("UPDATE api_keys SET last_used_at = NOW() WHERE service_name = ?");
+        $stmtU->execute([$service]);
+    };
 
     // Phase 1: Web Search (Tavily with Firecrawl fallback)
     $query = "$companyName battery recycling EPR targets EV business deals executives management team LinkedIn email";
@@ -44,6 +60,7 @@ function getCompanyResearch($pdo, $company, $forceRefresh = false) {
             $tData = json_decode($tRes, true);
             if (!isset($tData['error']) && !empty($tData['results'])) {
                 $tavilySuccess = true;
+                $logUsage('Tavily');
                 foreach ($tData['results'] as $res) {
                     $context .= "Source URL: " . $res['url'] . "\nContent: " . $res['content'] . "\n\n";
                 }
@@ -71,6 +88,7 @@ function getCompanyResearch($pdo, $company, $forceRefresh = false) {
         if ($fRes !== false) {
             $fData = json_decode($fRes, true);
             if (!empty($fData['data'])) {
+                $logUsage('Firecrawl');
                 foreach ($fData['data'] as $res) {
                     $context .= "Source URL: " . ($res['url'] ?? '') . "\nContent: " . ($res['description'] ?? '') . "\n\n";
                 }
@@ -163,6 +181,7 @@ Output a JSON object strictly matching this schema:
             $gData = json_decode($gRes, true);
             if (!isset($gData['error'])) {
                 $groqSuccess = true;
+                $logUsage('Groq');
                 $resultJsonStr = $gData['choices'][0]['message']['content'] ?? '{}';
             } else {
                 $groqError = json_encode($gData['error']);
@@ -192,6 +211,7 @@ Output a JSON object strictly matching this schema:
         if ($gemRes !== false) {
             $gemData = json_decode($gemRes, true);
             if (!isset($gemData['error']) && isset($gemData['candidates'][0]['content']['parts'][0]['text'])) {
+                $logUsage('Gemini');
                 $resultJsonStr = $gemData['candidates'][0]['content']['parts'][0]['text'];
             } else if (empty($resultJsonStr) || $resultJsonStr == '{}') {
                 return ['error' => 'Both Groq and Gemini APIs failed. Groq Error: ' . $groqError];
