@@ -101,7 +101,13 @@ function getCompanyResearch($pdo, $company, $forceRefresh = false) {
     }
 
     // Truncate context to prevent LLM token limit errors (max 15000 chars roughly 3500 tokens)
-    $context = substr($context, 0, 15000);
+    // Attempt Groq First (With 1 Retry for Rate Limits)
+    $groqSuccess = false;
+    $resultJsonStr = '{}';
+    $groqError = '';
+    
+    // Reduce context even further to prevent TPM limits (max 10000 chars roughly 2500 tokens)
+    $context = substr($context, 0, 10000);
 
     // Mathematical hints for the AI
     $targetTonsCalc = is_numeric($targetTons) ? $targetTons : 0;
@@ -109,7 +115,7 @@ function getCompanyResearch($pdo, $company, $forceRefresh = false) {
     if ($targetTonsCalc > 0) {
         $mathContext = "Given their EPR Target of $targetTonsCalc Tons, if MiniMines secures 100% of this feed, we can generate up to ".($targetTonsCalc * 0.148)." Tons of EPR Certificates. We can recover approx ".($targetTonsCalc * 0.1)." Tons of High-Purity Nickel & Cobalt via HHM™ process, and refine approx ".($targetTonsCalc * 0.08)." Tons of Lithium Carbonate equivalent.";
     }
-
+    
     // Phase 2: LLM Processing
     $prompt = "You are a highly analytical Sourcing Agent for 'MiniMines', a battery recycling company using a patented Hybrid Hydrometallurgy (HHM™) process. Analyze the web search context about '$companyName'.
 Their official EPR target is $targetTons Tons.
@@ -152,12 +158,9 @@ Output a JSON object strictly matching this schema:
   ]
 }";
 
-    // Attempt Groq First
-    $groqSuccess = false;
-    $resultJsonStr = '{}';
-    $groqError = '';
-
-    if (!empty($groqKey)) {
+    for ($attempt = 1; $attempt <= 2; $attempt++) {
+        if (empty($groqKey)) break;
+        
         $chG = curl_init('https://api.groq.com/openai/v1/chat/completions');
         curl_setopt($chG, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($chG, CURLOPT_POST, true);
@@ -184,12 +187,22 @@ Output a JSON object strictly matching this schema:
                 $groqSuccess = true;
                 $logUsage('Groq');
                 $resultJsonStr = $gData['choices'][0]['message']['content'] ?? '{}';
+                break;
             } else {
                 $groqError = json_encode($gData['error']);
+                // If it's a rate limit error, wait 2.5 seconds and try again
+                if (isset($gData['error']['code']) && $gData['error']['code'] === 'rate_limit_exceeded' && $attempt == 1) {
+                    sleep(2);
+                    continue;
+                }
+                break; // Break if it's not a rate limit error or we already retried
             }
+        } else {
+            break; // Curl failed entirely
         }
     }
 
+    $geminiError = '';
     // Fallback to Gemini if Groq failed (Rate limit, too large, etc)
     if (!$groqSuccess && !empty($geminiKey)) {
         $chGem = curl_init('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $geminiKey);
@@ -214,9 +227,15 @@ Output a JSON object strictly matching this schema:
             if (!isset($gemData['error']) && isset($gemData['candidates'][0]['content']['parts'][0]['text'])) {
                 $logUsage('Gemini');
                 $resultJsonStr = $gemData['candidates'][0]['content']['parts'][0]['text'];
-            } else if (empty($resultJsonStr) || $resultJsonStr == '{}') {
-                return ['error' => 'Both Groq and Gemini APIs failed. Groq Error: ' . $groqError];
+            } else if (isset($gemData['error'])) {
+                $geminiError = json_encode($gemData['error']);
             }
+        } else {
+            $geminiError = "Gemini CURL connection failed.";
+        }
+        
+        if (empty($resultJsonStr) || $resultJsonStr == '{}') {
+            return ['error' => "Both APIs failed.\nGroq: $groqError\nGemini: $geminiError (Check if Gemini key is valid)"];
         }
     }
 
