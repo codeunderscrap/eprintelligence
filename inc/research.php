@@ -121,6 +121,7 @@ $context
 Generate a highly strategic Sourcing Agent Console report.
 Rule 1: NEVER hallucinate contact details. If an email or linkedin profile is NOT found in the context, output 'Not Publicly Available'.
 Rule 2: ALWAYS provide the 'proof_source_url' for any contact found.
+Rule 3: ONLY extract real, full human names for contacts (e.g. 'John Doe'). NEVER extract short codes, symbols, or non-human strings like '\NAS\'. If no valid human name is found, output an empty array for contacts: []
 
 Output a JSON object strictly matching this schema:
 {
