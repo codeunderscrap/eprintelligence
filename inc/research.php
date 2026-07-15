@@ -251,8 +251,8 @@ Output a JSON object strictly matching this schema:
     if (isset($finalResult['contacts']) && is_array($finalResult['contacts'])) {
         foreach ($finalResult['contacts'] as $key => $contact) {
             $name = $contact['name'] ?? '';
-            // If name has a backslash or is too short or is a known weird code, remove it
-            if (strpos($name, '\\') !== false || strlen(trim($name)) < 3 || preg_match('/^[A-Z]{2,4}$/', trim($name))) {
+            // Only filter if the name contains backslashes or curly braces (clear signs of hallucination/code injection)
+            if (strpos($name, '\\') !== false || strpos($name, '{') !== false || strpos($name, '[') !== false) {
                 unset($finalResult['contacts'][$key]);
             }
         }
