@@ -24,6 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset'])) {
             $insertStmt = $pdo->prepare("
                 INSERT INTO companies (project_id, registration_number, company_name, target_tons, credits) 
                 VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                target_tons = GREATEST(target_tons, VALUES(target_tons)),
+                credits = GREATEST(credits, VALUES(credits))
             ");
 
             $dataStarted = false;
