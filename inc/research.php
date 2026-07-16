@@ -3,7 +3,6 @@
 function getCompanyResearch($pdo, $company, $forceRefresh = false) {
     $companyId = $company['id'];
     $companyName = $company['company_name'];
-    $targetTons = $company['target_tons'] > 0 ? $company['target_tons'] : 'Unknown';
 
     if (!$forceRefresh) {
         $stmt = $pdo->prepare("SELECT research_data FROM company_research WHERE company_id = ?");
