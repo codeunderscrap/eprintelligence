@@ -24,11 +24,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset']) && isset(
 
     if (!empty($fileTmpPath) && $materialId > 0) {
         try {
-            $reader = IOFactory::createReaderForFile($fileTmpPath);
-            $reader->setReadDataOnly(true);
-            $spreadsheet = $reader->load($fileTmpPath);
-            $sheet = $spreadsheet->getActiveSheet();
-            $data = $sheet->toArray();
+            $ext = strtolower(pathinfo($_FILES['dataset']['name'], PATHINFO_EXTENSION));
+            $data = [];
+            
+            if ($ext === 'csv') {
+                // Lightning fast native CSV parsing (Bypasses Byethost memory limits)
+                if (($handle = fopen($fileTmpPath, "r")) !== FALSE) {
+                    while (($row = fgetcsv($handle, 10000, ",")) !== FALSE) {
+                        $data[] = $row;
+                    }
+                    fclose($handle);
+                }
+            } else {
+                $reader = IOFactory::createReaderForFile($fileTmpPath);
+                $reader->setReadDataOnly(true);
+                $spreadsheet = $reader->load($fileTmpPath);
+                $sheet = $spreadsheet->getActiveSheet();
+                $data = $sheet->toArray();
+            }
             
             $stmt = $pdo->prepare("INSERT INTO projects (owner_id, name) VALUES (?, ?)");
             $stmt->execute([$_SESSION['user_id'], 'Upload ' . date('Y-m-d H:i')]);
