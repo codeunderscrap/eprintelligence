@@ -74,23 +74,23 @@ foreach ($companiesRaw as $c) {
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Registration No.</th>
-                                    <th>Company Name</th>
+                                    <th style="width: 12%;">Reg. No.</th>
+                                    <th style="width: 25%;">Company Name</th>
                                     <?php foreach ($activeMaterials as $mat): ?>
-                                        <th class="text-center"><?= htmlspecialchars($mat['name']) ?></th>
+                                        <th class="text-center bg-light"><?= htmlspecialchars($mat['name']) ?></th>
                                     <?php endforeach; ?>
-                                    <th>Priority Score 
+                                    <th style="width: 12%;">Priority Score 
                                         <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: SUM((Material Target × Target Weight) + (Material Credits × Credit Weight)) for all active materials">?</span>
                                     </th>
-                                    <th>Action</th>
+                                    <th style="width: 15%;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (count($companies) > 0): ?>
                                     <?php foreach ($companies as $c): ?>
                                         <tr>
-                                            <td class="align-middle"><?= htmlspecialchars($c['registration_number']) ?></td>
-                                            <td class="align-middle"><span class="fw-semibold"><?= htmlspecialchars($c['company_name']) ?></span></td>
+                                            <td class="align-middle text-muted"><?= htmlspecialchars($c['registration_number']) ?></td>
+                                            <td class="align-middle"><span class="fw-bold text-dark"><?= htmlspecialchars($c['company_name']) ?></span></td>
                                             
                                             <?php foreach ($activeMaterials as $mat): ?>
                                                 <?php 
@@ -98,9 +98,14 @@ foreach ($companiesRaw as $c) {
                                                     if (isset($c['materials'][$mName])) {
                                                         $t = number_format($c['materials'][$mName]['target'], 2);
                                                         $cr = number_format($c['materials'][$mName]['credits'], 2);
-                                                        echo "<td class='text-center align-middle'><span class='d-block small text-muted'>T: <strong>{$t}</strong></span><span class='d-block small text-muted'>C: <strong>{$cr}</strong></span></td>";
+                                                        echo "<td class='text-center align-middle bg-light bg-opacity-50'>
+                                                                <div class='d-inline-flex flex-column gap-1 text-start' style='min-width: 90px;'>
+                                                                    <span class='badge bg-white text-dark border shadow-sm w-100 text-start'><span class='text-primary fw-bold me-1'>T:</span> {$t}</span>
+                                                                    <span class='badge bg-white text-dark border shadow-sm w-100 text-start'><span class='text-success fw-bold me-1'>C:</span> {$cr}</span>
+                                                                </div>
+                                                              </td>";
                                                     } else {
-                                                        echo "<td class='text-center align-middle text-muted small fst-italic'>-</td>";
+                                                        echo "<td class='text-center align-middle bg-light bg-opacity-50 text-muted small fst-italic'>-</td>";
                                                     }
                                                 ?>
                                             <?php endforeach; ?>
