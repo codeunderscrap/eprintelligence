@@ -7,9 +7,20 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_material_id'])) {
+    $matIdToDelete = (int)$_POST['delete_material_id'];
+    if ($matIdToDelete > 0) {
+        $stmt = $pdo->prepare("DELETE FROM company_materials WHERE material_id = ?");
+        $stmt->execute([$matIdToDelete]);
+        $success = "Dataset wiped successfully.";
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset']) && isset($_POST['material_id'])) {
     $fileTmpPath = $_FILES['dataset']['tmp_name'];
     $materialId = (int)$_POST['material_id'];
+    
+    set_time_limit(300); // Allow up to 5 minutes for parsing large files
 
     if (!empty($fileTmpPath) && $materialId > 0) {
         try {
@@ -22,6 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset']) && isset(
             $stmt = $pdo->prepare("INSERT INTO projects (owner_id, name) VALUES (?, ?)");
             $stmt->execute([$_SESSION['user_id'], 'Upload ' . date('Y-m-d H:i')]);
             $projectId = $pdo->lastInsertId();
+            
+            // Clean Replace Logic: Wipe existing data for this specific material before import
+            $stmtDel = $pdo->prepare("DELETE FROM company_materials WHERE material_id = ?");
+            $stmtDel->execute([$materialId]);
 
             $insertCompany = $pdo->prepare("
                 INSERT INTO companies (project_id, registration_number, company_name) 
@@ -98,6 +113,12 @@ $activeMaterials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             <?php endif; ?>
             
+            <?php if (isset($success)): ?>
+                <div class="alert alert-success shadow-sm rounded-3 border-0 border-start border-4 border-success">
+                    <i class="bi bi-check-circle-fill me-2"></i><?= htmlspecialchars($success) ?>
+                </div>
+            <?php endif; ?>
+            
             <div class="card shadow-sm" style="max-width: 600px;">
                 <div class="card-body p-4">
                     <div class="text-center mb-4 text-primary">
@@ -129,16 +150,24 @@ $activeMaterials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
                         <?php
-                        $statStmt = $pdo->query("SELECT m.name, COUNT(cm.company_id) as company_count FROM materials m LEFT JOIN company_materials cm ON m.id = cm.material_id GROUP BY m.id ORDER BY m.name ASC");
+                        $statStmt = $pdo->query("SELECT m.id, m.name, COUNT(cm.company_id) as company_count FROM materials m LEFT JOIN company_materials cm ON m.id = cm.material_id GROUP BY m.id ORDER BY m.name ASC");
                         $stats = $statStmt->fetchAll(PDO::FETCH_ASSOC);
                         foreach ($stats as $stat): 
                             $badgeClass = $stat['company_count'] > 0 ? 'bg-success' : 'bg-secondary';
                         ?>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <?= htmlspecialchars($stat['name']) ?>
-                                <span class="badge <?= $badgeClass ?> rounded-pill">
-                                    <?= $stat['company_count'] > 0 ? $stat['company_count'] . ' Companies Uploaded' : 'No Data Uploaded' ?>
-                                </span>
+                                <div>
+                                    <span class="badge <?= $badgeClass ?> rounded-pill me-2">
+                                        <?= $stat['company_count'] > 0 ? $stat['company_count'] . ' Companies' : 'No Data' ?>
+                                    </span>
+                                    <?php if ($stat['company_count'] > 0): ?>
+                                    <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to completely wipe the <?= htmlspecialchars($stat['name']) ?> dataset?');">
+                                        <input type="hidden" name="delete_material_id" value="<?= $stat['id'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Delete Dataset"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                    <?php endif; ?>
+                                </div>
                             </li>
                         <?php endforeach; ?>
                     </ul>
