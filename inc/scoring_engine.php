@@ -94,8 +94,8 @@ function getScoringData($pdo) {
             $scoreTarget100 = $zTo100($zTarget);
             $scoreCredits100 = $zTo100($zCredits);
             
-            // Material Composite Score (1-100)
-            $materialCompositeScore = ($scoreTarget100 * $row['target_weight']) + ($scoreCredits100 * $row['credit_weight']);
+            // Material Composite Score: Prioritize the GAP (Target - Credits) 
+            $materialCompositeScore = ($scoreTarget100 * $row['target_weight']) + (($scoreTarget100 - $scoreCredits100) * $row['credit_weight']);
             
             // Apply Dynamic Normalized Overall Material Weight
             $contributionToGlobal = $materialCompositeScore * $normalizedOverallWeight;
