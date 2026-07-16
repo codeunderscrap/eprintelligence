@@ -54,7 +54,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset']) && isset(
             $insertCompany = $pdo->prepare("
                 INSERT INTO companies (project_id, registration_number, company_name) 
                 VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
+            ");
+            
+            $findCompany = $pdo->prepare("
+                SELECT id FROM companies WHERE company_name = ? LIMIT 1
             ");
 
             $insertMaterial = $pdo->prepare("
@@ -85,8 +88,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset']) && isset(
 
                 if (empty(trim($compName))) continue;
                 
-                $insertCompany->execute([$projectId, $regNo, $compName]);
-                $companyId = $pdo->lastInsertId();
+                $findCompany->execute([$compName]);
+                $existingComp = $findCompany->fetch(PDO::FETCH_ASSOC);
+                
+                if ($existingComp) {
+                    $companyId = $existingComp['id'];
+                } else {
+                    $insertCompany->execute([$projectId, $regNo, $compName]);
+                    $companyId = $pdo->lastInsertId();
+                }
                 
                 $insertMaterial->execute([$companyId, $materialId, $target, $credits]);
             }
