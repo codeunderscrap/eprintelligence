@@ -1,47 +1,40 @@
 <?php
 include 'config.php';
+require_once 'inc/scoring_engine.php';
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: index.php');
     exit;
 }
 
-// 1. Fetch all active materials to create dynamic table columns
-$stmtMat = $pdo->query("SELECT id, name FROM materials WHERE is_active = 1 ORDER BY id ASC");
-$activeMaterials = $stmtMat->fetchAll(PDO::FETCH_ASSOC);
+$scoring = getScoringData($pdo);
+$activeMaterials = $scoring['active_materials'];
+$companyRawScores = $scoring['company_raw_scores'];
+$companyMatData = $scoring['company_mat_data'];
+$maxRawScore = $scoring['max_raw_score'];
 
-// 2. Fetch all companies and their calculated priority scores
-$stmt = $pdo->query("
-    SELECT c.*, 
-           IFNULL(SUM((cm.target_tons * m.target_weight) + (cm.credits * m.credit_weight)), 0) AS priority_score
-    FROM companies c
-    LEFT JOIN company_materials cm ON c.id = cm.company_id
-    LEFT JOIN materials m ON cm.material_id = m.id AND m.is_active = 1
-    GROUP BY c.id
-    ORDER BY priority_score DESC
-");
+// 5. Fetch all companies, apply 1-100 scaling, and sort
+$stmt = $pdo->query("SELECT * FROM companies");
 $companiesRaw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 3. Fetch specific material targets/credits for all companies
-$stmtData = $pdo->query("
-    SELECT cm.company_id, m.name, cm.target_tons, cm.credits
-    FROM company_materials cm
-    JOIN materials m ON cm.material_id = m.id
-    WHERE m.is_active = 1
-");
-$matData = [];
-while ($row = $stmtData->fetch(PDO::FETCH_ASSOC)) {
-    $matData[$row['company_id']][$row['name']] = [
-        'target' => $row['target_tons'],
-        'credits' => $row['credits']
-    ];
-}
-
-// 4. Combine data
 $companies = [];
 foreach ($companiesRaw as $c) {
-    $c['materials'] = $matData[$c['id']] ?? [];
-    $companies[] = $c;
+    $cId = $c['id'];
+    // Only include companies that have active material data
+    if (isset($companyRawScores[$cId])) {
+        $rawScore = $companyRawScores[$cId];
+        $scaledScore = $maxRawScore > 0 ? ($rawScore / $maxRawScore) * 100 : 0;
+        
+        $c['priority_score'] = $scaledScore;
+        $c['materials'] = $companyMatData[$cId] ?? [];
+        $companies[] = $c;
+    }
 }
+
+// Sort by Priority Score DESC
+usort($companies, function($a, $b) {
+    return $b['priority_score'] <=> $a['priority_score'];
+});
 
 ?>
 <!DOCTYPE html>
@@ -80,7 +73,7 @@ foreach ($companiesRaw as $c) {
                                         <th class="text-center bg-light"><?= htmlspecialchars($mat['name']) ?></th>
                                     <?php endforeach; ?>
                                     <th style="width: 12%;">Priority Score 
-                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: SUM((Material Target × Target Weight) + (Material Credits × Credit Weight)) for all active materials">?</span>
+                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Scaled 1-100 based on normalized material averages and Admin weights">?</span>
                                     </th>
                                     <th style="width: 15%;">Action</th>
                                 </tr>

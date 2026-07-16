@@ -2,6 +2,8 @@
 include 'config.php';
 require 'inc/research.php';
 
+require_once 'inc/scoring_engine.php';
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: index.php');
     exit;
@@ -9,24 +11,23 @@ if (!isset($_SESSION['user_id'])) {
 if (!isset($_GET['id'])) {
     die("No company specified.");
 }
-$stmt = $pdo->prepare("SELECT * FROM companies WHERE id = ?");
-$stmt->execute([$_GET['id']]);
-$company = $stmt->fetch(PDO::FETCH_ASSOC);
+$companyId = (int)$_GET['id'];
 
-$matStmt = $pdo->prepare("
-    SELECT m.name, cm.target_tons, cm.credits, m.target_weight, m.credit_weight,
-           ((cm.target_tons * m.target_weight) + (cm.credits * m.credit_weight)) AS material_score
-    FROM company_materials cm
-    JOIN materials m ON cm.material_id = m.id
-    WHERE cm.company_id = ? AND m.is_active = 1
-");
-$matStmt->execute([$_GET['id']]);
-$companyMaterials = $matStmt->fetchAll(PDO::FETCH_ASSOC);
-$totalScore = array_sum(array_column($companyMaterials, 'material_score'));
+$stmt = $pdo->prepare("SELECT * FROM companies WHERE id = ?");
+$stmt->execute([$companyId]);
+$company = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$company) {
     die("Company not found.");
 }
+
+$scoring = getScoringData($pdo);
+$companyMaterials = $scoring['company_mat_data'][$companyId] ?? [];
+$rawScore = $scoring['company_raw_scores'][$companyId] ?? 0;
+$maxRawScore = $scoring['max_raw_score'];
+$totalScore = $maxRawScore > 0 ? ($rawScore / $maxRawScore) * 100 : 0;
+
+
 $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] == 1;
 $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
 ?>
@@ -136,15 +137,15 @@ $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
                         </thead>
                         <tbody>
                             <?php if (count($companyMaterials) > 0): ?>
-                                <?php foreach ($companyMaterials as $mat): ?>
+                                <?php foreach ($companyMaterials as $matName => $matData): ?>
                                 <tr>
-                                    <td class="ps-4 fw-semibold"><?= htmlspecialchars($mat['name']) ?></td>
-                                    <td><?= number_format($mat['target_tons'], 2) ?></td>
-                                    <td><?= number_format($mat['credits'], 2) ?></td>
+                                    <td class="ps-4 fw-semibold"><?= htmlspecialchars($matName) ?></td>
+                                    <td><?= number_format($matData['target'], 2) ?></td>
+                                    <td><?= number_format($matData['credits'], 2) ?></td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <strong class="text-dark me-2"><?= number_format($mat['material_score'], 2) ?></strong>
-                                            <small class="text-muted" style="font-size: 0.75rem;">(Wt: <?= $mat['target_weight'] ?>/<?= $mat['credit_weight'] ?>)</small>
+                                            <strong class="text-dark me-2"><?= number_format($matData['normalized_score'], 2) ?></strong>
+                                            <small class="text-muted" style="font-size: 0.75rem;">(Normalized Points)</small>
                                         </div>
                                     </td>
                                 </tr>

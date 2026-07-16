@@ -106,7 +106,7 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <h5 class="mb-0 text-primary"><i class="bi bi-box me-2"></i>Material Management & Priority Weights</h5>
                         <p class="text-muted small mt-1 mb-0">Configure which materials are tracked and their priority calculation weights.</p>
                         <div class="alert alert-info py-2 px-3 mt-2 mb-0 small">
-                            <strong>Priority Score Formula:</strong> <code>SUM((Target × Target Weight) + (Credits × Credit Weight))</code>
+                            <strong>Priority Score Formula (Scaled 1-100):</strong> <code>SUM( ((Target / Global Avg Target) × Target Weight) + ... )</code> scaled against the max score.
                         </div>
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
