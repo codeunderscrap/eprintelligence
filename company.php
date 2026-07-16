@@ -13,6 +13,17 @@ $stmt = $pdo->prepare("SELECT * FROM companies WHERE id = ?");
 $stmt->execute([$_GET['id']]);
 $company = $stmt->fetch(PDO::FETCH_ASSOC);
 
+$matStmt = $pdo->prepare("
+    SELECT m.name, cm.target_tons, cm.credits, m.target_weight, m.credit_weight,
+           ((cm.target_tons * m.target_weight) + (cm.credits * m.credit_weight)) AS material_score
+    FROM company_materials cm
+    JOIN materials m ON cm.material_id = m.id
+    WHERE cm.company_id = ? AND m.is_active = 1
+");
+$matStmt->execute([$_GET['id']]);
+$companyMaterials = $matStmt->fetchAll(PDO::FETCH_ASSOC);
+$totalScore = array_sum(array_column($companyMaterials, 'material_score'));
+
 if (!$company) {
     die("Company not found.");
 }
@@ -108,6 +119,44 @@ $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
             </div>
             <?php endif; ?>
 
+            <div class="card shadow-sm border-0 mb-4 border-start border-4 border-success">
+                <div class="card-header bg-transparent border-bottom pt-4 pb-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-success"><i class="bi bi-box-seam me-2"></i>EPR Targets & Material Breakdown</h5>
+                    <span class="badge bg-success fs-6 shadow-sm">Total Priority Score: <?= number_format($totalScore, 2) ?></span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Material</th>
+                                <th>Target (Tons)</th>
+                                <th>Credits Procured</th>
+                                <th>Contribution to Priority Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (count($companyMaterials) > 0): ?>
+                                <?php foreach ($companyMaterials as $mat): ?>
+                                <tr>
+                                    <td class="ps-4 fw-semibold"><?= htmlspecialchars($mat['name']) ?></td>
+                                    <td><?= number_format($mat['target_tons'], 2) ?></td>
+                                    <td><?= number_format($mat['credits'], 2) ?></td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <strong class="text-dark me-2"><?= number_format($mat['material_score'], 2) ?></strong>
+                                            <small class="text-muted" style="font-size: 0.75rem;">(Wt: <?= $mat['target_weight'] ?>/<?= $mat['credit_weight'] ?>)</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr><td colspan="4" class="text-center py-4 text-muted">No material targets recorded for this company.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="row g-4 mb-4">
                 <div class="col-md-7">
                     <div class="card shadow-sm border-0 h-100">
@@ -125,7 +174,7 @@ $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
                             <h5 class="mb-0 text-primary"><i class="bi bi-recycle me-2"></i>MiniMines Closed-Loop Potential</h5>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted small mb-3">If MiniMines secures 100% of this OEM's waste battery feed based on their <?= number_format($company['target_tons'], 2) ?> Tons target:</p>
+                            <p class="text-muted small mb-3">If MiniMines secures 100% of this OEM's waste battery feed based on their multi-material targets:</p>
                             <ul class="list-unstyled lh-lg">
                                 <?php
                                     $eprCert = $aiData['potential']['epr_certificates'] ?? 'N/A';

@@ -7,13 +7,31 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $stmt = $pdo->prepare("UPDATE api_keys SET api_key = ? WHERE service_name = ?");
-    foreach ($_POST['api'] as $service => $key) {
-        if (!empty(trim($key)) && strpos($key, '****') === false) {
-            $stmt->execute([trim($key), $service]);
+    if (isset($_POST['api'])) {
+        $stmt = $pdo->prepare("UPDATE api_keys SET api_key = ? WHERE service_name = ?");
+        foreach ($_POST['api'] as $service => $key) {
+            if (!empty(trim($key)) && strpos($key, '****') === false) {
+                $stmt->execute([trim($key), $service]);
+            }
+        }
+        $message = "API Keys updated successfully!";
+    } elseif (isset($_POST['materials'])) {
+        $stmt = $pdo->prepare("UPDATE materials SET is_active = ?, target_weight = ?, credit_weight = ? WHERE id = ?");
+        foreach ($_POST['materials'] as $id => $data) {
+            $isActive = isset($data['is_active']) ? 1 : 0;
+            $targetWeight = (float)$data['target_weight'];
+            $creditWeight = (float)$data['credit_weight'];
+            $stmt->execute([$isActive, $targetWeight, $creditWeight, $id]);
+        }
+        $message = "Material Settings updated successfully!";
+    } elseif (isset($_POST['new_material'])) {
+        $name = trim($_POST['new_material_name']);
+        if (!empty($name)) {
+            $stmt = $pdo->prepare("INSERT IGNORE INTO materials (name, is_active, target_weight, credit_weight) VALUES (?, 1, 1.0, 0.5)");
+            $stmt->execute([$name]);
+            $message = "New material added successfully!";
         }
     }
-    $message = "API Keys updated successfully!";
 }
 
 $stmt = $pdo->query("SELECT * FROM api_keys");
@@ -21,6 +39,9 @@ $apiKeys = [];
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $apiKeys[$row['service_name']] = $row;
 }
+
+$stmt = $pdo->query("SELECT * FROM materials ORDER BY id ASC");
+$materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html>
@@ -79,7 +100,81 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     </form>
                 </div>
             </div>
+            <div class="card shadow-sm border-0 mt-4">
+                <div class="card-header bg-white pt-4 pb-3 border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 text-primary"><i class="bi bi-box me-2"></i>Material Management & Priority Weights</h5>
+                        <p class="text-muted small mt-1 mb-0">Configure which materials are tracked and their priority calculation weights.</p>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
+                        <i class="bi bi-plus-circle me-1"></i> Add Material
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <form method="POST">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Material Name</th>
+                                    <th>Active</th>
+                                    <th>Target Weight</th>
+                                    <th>Credit Weight</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($materials as $mat): ?>
+                                <tr>
+                                    <td class="ps-4 align-middle fw-semibold"><?= htmlspecialchars($mat['name']) ?></td>
+                                    <td class="align-middle">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="materials[<?= $mat['id'] ?>][is_active]" <?= $mat['is_active'] ? 'checked' : '' ?>>
+                                        </div>
+                                    </td>
+                                    <td class="align-middle">
+                                        <input type="number" step="0.01" class="form-control form-control-sm w-75" name="materials[<?= $mat['id'] ?>][target_weight]" value="<?= htmlspecialchars($mat['target_weight']) ?>">
+                                    </td>
+                                    <td class="align-middle">
+                                        <input type="number" step="0.01" class="form-control form-control-sm w-75" name="materials[<?= $mat['id'] ?>][credit_weight]" value="<?= htmlspecialchars($mat['credit_weight']) ?>">
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <div class="p-4 text-end border-top bg-light">
+                            <button type="submit" class="btn btn-primary shadow-sm px-4"><i class="bi bi-save me-2"></i>Save Materials</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
         </div>
     </div>
+
+    <!-- Add Material Modal -->
+    <div class="modal fade" id="addMaterialModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Material</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Material Name</label>
+                            <input type="text" class="form-control" name="new_material_name" required placeholder="e.g., Manganese">
+                        </div>
+                        <input type="hidden" name="new_material" value="1">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Material</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -109,16 +109,30 @@ function getCompanyResearch($pdo, $company, $forceRefresh = false) {
     // Reduce context even further to prevent TPM limits (max 10000 chars roughly 2500 tokens)
     $context = substr($context, 0, 10000);
 
-    // Mathematical hints for the AI
-    $targetTonsCalc = is_numeric($targetTons) ? $targetTons : 0;
+    // Fetch materials context
+    $matStmt = $pdo->prepare("SELECT m.name, cm.target_tons FROM company_materials cm JOIN materials m ON cm.material_id = m.id WHERE cm.company_id = ? AND m.is_active = 1 AND cm.target_tons > 0");
+    $matStmt->execute([$companyId]);
+    $companyMats = $matStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $materialsContext = "";
     $mathContext = "";
-    if ($targetTonsCalc > 0) {
-        $mathContext = "Given their EPR Target of $targetTonsCalc Tons, if MiniMines secures 100% of this feed, we can generate up to ".($targetTonsCalc * 0.148)." Tons of EPR Certificates. We can recover approx ".($targetTonsCalc * 0.1)." Tons of High-Purity Nickel & Cobalt via HHM™ process, and refine approx ".($targetTonsCalc * 0.08)." Tons of Lithium Carbonate equivalent.";
+    
+    if (count($companyMats) > 0) {
+        $materialsContext = "Their official EPR targets are:\n";
+        foreach ($companyMats as $mat) {
+            $materialsContext .= "- " . $mat['name'] . ": " . number_format($mat['target_tons'], 2) . " Tons\n";
+            $targetTonsCalc = is_numeric($mat['target_tons']) ? $mat['target_tons'] : 0;
+            if ($mat['name'] === 'Lithium' && $targetTonsCalc > 0) {
+                $mathContext .= "For Lithium ($targetTonsCalc Tons): if MiniMines secures 100% of this feed, we can generate up to ".($targetTonsCalc * 0.148)." Tons of EPR Certificates. We can recover approx ".($targetTonsCalc * 0.1)." Tons of High-Purity Nickel & Cobalt via HHM™ process, and refine approx ".($targetTonsCalc * 0.08)." Tons of Lithium Carbonate equivalent.\n";
+            }
+        }
+    } else {
+        $materialsContext = "Their official EPR targets are currently unknown or 0.\n";
     }
     
     // Phase 2: LLM Processing
     $prompt = "You are a highly analytical Sourcing Agent for 'MiniMines', a battery recycling company using a patented Hybrid Hydrometallurgy (HHM™) process. Analyze the web search context about '$companyName'.
-Their official EPR target is $targetTons Tons.
+$materialsContext
 $mathContext
 
 Context:

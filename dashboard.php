@@ -7,9 +7,13 @@ if (!isset($_SESSION['user_id'])) {
 
 $stmt = $pdo->query("
     SELECT c.*, 
-           (IFNULL(c.target_tons, 0) * (SELECT weight FROM priority_rules WHERE metric = 'target_tons' LIMIT 1) + 
-            IFNULL(c.credits, 0) * (SELECT weight FROM priority_rules WHERE metric = 'credits' LIMIT 1)) AS priority_score 
-    FROM companies c 
+           IFNULL(SUM(cm.target_tons), 0) AS total_target,
+           IFNULL(SUM(cm.credits), 0) AS total_credits,
+           IFNULL(SUM((cm.target_tons * m.target_weight) + (cm.credits * m.credit_weight)), 0) AS priority_score
+    FROM companies c
+    LEFT JOIN company_materials cm ON c.id = cm.company_id
+    LEFT JOIN materials m ON cm.material_id = m.id AND m.is_active = 1
+    GROUP BY c.id
     ORDER BY priority_score DESC
 ");
 $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -49,7 +53,7 @@ $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <th>Target (Tons)</th>
                                     <th>Credits</th>
                                     <th>Priority Score 
-                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Calculated as: (Target Tons × 1.0) + (Credits × 0.5)">?</span>
+                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Calculated dynamically based on active materials and Admin weights">?</span>
                                     </th>
                                     <th>Action</th>
                                 </tr>
@@ -60,8 +64,8 @@ $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <tr>
                                             <td><?= htmlspecialchars($c['registration_number']) ?></td>
                                             <td><span class="fw-semibold"><?= htmlspecialchars($c['company_name']) ?></span></td>
-                                            <td><?= number_format($c['target_tons'], 2) ?></td>
-                                            <td><?= number_format($c['credits'], 2) ?></td>
+                                            <td><?= number_format($c['total_target'], 2) ?></td>
+                                            <td><?= number_format($c['total_credits'], 2) ?></td>
                                             <td><strong class="text-primary"><?= number_format($c['priority_score'], 2) ?></strong></td>
                                             <td>
                                                 <a href="company.php?id=<?= $c['id'] ?>" class="btn btn-sm btn-primary">AI Research & Deals</a>

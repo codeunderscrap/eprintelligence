@@ -7,11 +7,11 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset']) && isset($_POST['material_id'])) {
     $fileTmpPath = $_FILES['dataset']['tmp_name'];
-    $fileName = $_FILES['dataset']['name'];
+    $materialId = (int)$_POST['material_id'];
 
-    if (!empty($fileTmpPath)) {
+    if (!empty($fileTmpPath) && $materialId > 0) {
         try {
             $spreadsheet = IOFactory::load($fileTmpPath);
             $sheet = $spreadsheet->getActiveSheet();
@@ -21,9 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset'])) {
             $stmt->execute([$_SESSION['user_id'], 'Upload ' . date('Y-m-d H:i')]);
             $projectId = $pdo->lastInsertId();
 
-            $insertStmt = $pdo->prepare("
-                INSERT INTO companies (project_id, registration_number, company_name, target_tons, credits) 
-                VALUES (?, ?, ?, ?, ?)
+            $insertCompany = $pdo->prepare("
+                INSERT INTO companies (project_id, registration_number, company_name) 
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
+            ");
+
+            $insertMaterial = $pdo->prepare("
+                INSERT INTO company_materials (company_id, material_id, target_tons, credits) 
+                VALUES (?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE 
                 target_tons = GREATEST(target_tons, VALUES(target_tons)),
                 credits = GREATEST(credits, VALUES(credits))
@@ -48,7 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset'])) {
                 $credits = is_numeric($creditsRaw) ? (float)$creditsRaw : 0;
 
                 if (empty(trim($compName))) continue;
-                $insertStmt->execute([$projectId, $regNo, $compName, $target, $credits]);
+                
+                $insertCompany->execute([$projectId, $regNo, $compName]);
+                $companyId = $pdo->lastInsertId();
+                
+                $insertMaterial->execute([$companyId, $materialId, $target, $credits]);
             }
             header('Location: dashboard.php');
             exit;
@@ -57,6 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset'])) {
         }
     }
 }
+
+$stmt = $pdo->query("SELECT id, name FROM materials WHERE is_active = 1 ORDER BY name ASC");
+$activeMaterials = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html>
@@ -89,7 +102,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset'])) {
                         <i class="bi bi-cloud-arrow-up" style="font-size: 3rem;"></i>
                     </div>
                     <form method="POST" enctype="multipart/form-data">
-                        <div class="mb-4">
+                        <div class="mb-4 text-start">
+                            <label class="form-label fw-semibold text-muted">Select Target Material</label>
+                            <select name="material_id" class="form-select form-select-lg mb-3" required>
+                                <option value="">-- Choose Material --</option>
+                                <?php foreach ($activeMaterials as $mat): ?>
+                                    <option value="<?= $mat['id'] ?>"><?= htmlspecialchars($mat['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            
                             <label class="form-label fw-semibold text-muted">Select Excel / CSV File</label>
                             <input class="form-control form-control-lg" type="file" name="dataset" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
                         </div>
