@@ -63,7 +63,7 @@ usort($companies, function($a, $b) {
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th style="width: 12%;">Reg. No.</th>
+                                    <th style="width: 8%;">Sr. No.</th>
                                     <th style="width: 25%;">Company Name</th>
                                     <?php foreach ($activeMaterials as $mat): ?>
                                         <th class="text-center bg-light"><?= htmlspecialchars($mat['name']) ?></th>
@@ -76,9 +76,9 @@ usort($companies, function($a, $b) {
                             </thead>
                             <tbody>
                                 <?php if (count($companies) > 0): ?>
-                                    <?php foreach ($companies as $c): ?>
+                                    <?php $srNo = 1; foreach ($companies as $c): ?>
                                         <tr>
-                                            <td class="align-middle text-muted"><?= htmlspecialchars($c['registration_number']) ?></td>
+                                            <td class="align-middle text-muted fw-bold"><?= $srNo++ ?></td>
                                             <td class="align-middle"><span class="fw-bold text-dark"><?= htmlspecialchars($c['company_name']) ?></span></td>
                                             
                                             <?php foreach ($activeMaterials as $mat): ?>
