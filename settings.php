@@ -123,9 +123,12 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <tr>
                                     <th class="ps-4">Material Name</th>
                                     <th>Active</th>
-                                    <th>Overall Weight</th>
+                                    <th>Overall Weight 
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 ms-2" style="font-size: 0.7rem;" onclick="normalizeOverallWeights()">Normalize</button>
+                                    </th>
                                     <th>Target Weight</th>
                                     <th>Credit Weight</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -145,6 +148,9 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </td>
                                     <td class="align-middle">
                                         <input type="number" step="0.01" min="0" max="1" oninput="if(this.value > 1) this.value = 1; if(this.value < 0) this.value = 0;" class="form-control form-control-sm w-75 weight-credit" name="materials[<?= $mat['id'] ?>][credit_weight]" value="<?= htmlspecialchars($mat['credit_weight']) ?>">
+                                    </td>
+                                    <td class="align-middle">
+                                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size: 0.7rem;" onclick="normalizeRow(this)">Normalize Row</button>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -187,6 +193,32 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function normalizeOverallWeights() {
+            const activeCheckboxes = Array.from(document.querySelectorAll('.form-switch input[type="checkbox"]:checked'));
+            if (activeCheckboxes.length === 0) return;
+            
+            let val = parseFloat((1.0 / activeCheckboxes.length).toFixed(2));
+            let sum = 0;
+            
+            activeCheckboxes.forEach((checkbox, index) => {
+                const row = checkbox.closest('tr');
+                const input = row.querySelector('.weight-overall');
+                
+                if (index === activeCheckboxes.length - 1) {
+                    input.value = (1.0 - sum).toFixed(2);
+                } else {
+                    input.value = val;
+                    sum += val;
+                }
+            });
+        }
+        
+        function normalizeRow(btn) {
+            const row = btn.closest('tr');
+            row.querySelector('.weight-target').value = "0.50";
+            row.querySelector('.weight-credit').value = "0.50";
+        }
+        
         document.getElementById('materialsForm').addEventListener('submit', function(e) {
             let overallSum = 0;
             let errorMsg = '';
@@ -203,15 +235,15 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     
                     const rowSum = parseFloat(targetInput.value || 0) + parseFloat(creditInput.value || 0);
                     // allow a tiny margin of error for floating point
-                    if (Math.abs(rowSum - 1.0) > 0.01) {
+                    if (Math.abs(rowSum - 1.0) > 0.02) {
                         const matName = row.querySelector('td:first-child').innerText;
                         errorMsg += `Target + Credit weight for ${matName} must equal exactly 1.0.<br>`;
                     }
                 }
             });
             
-            if (Math.abs(overallSum - 1.0) > 0.01) {
-                errorMsg += 'The sum of all active Overall Weights must equal exactly 1.0.';
+            if (Math.abs(overallSum - 1.0) > 0.02) {
+                errorMsg += 'The sum of all active Overall Weights must equal exactly 1.0.<br>';
             }
             
             if (errorMsg !== '') {
