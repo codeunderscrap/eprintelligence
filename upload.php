@@ -13,7 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['dataset']) && isset(
 
     if (!empty($fileTmpPath) && $materialId > 0) {
         try {
-            $spreadsheet = IOFactory::load($fileTmpPath);
+            $reader = IOFactory::createReaderForFile($fileTmpPath);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($fileTmpPath);
             $sheet = $spreadsheet->getActiveSheet();
             $data = $sheet->toArray();
             
