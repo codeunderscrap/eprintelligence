@@ -27,7 +27,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         </li>
         <li>
             <a href="settings.php" class="<?= $currentPage == 'settings.php' ? 'active' : '' ?>">
-                <i class="bi bi-key"></i> API Settings
+                <i class="bi bi-gear"></i> Settings
             </a>
         </li>
         <?php endif; ?>

@@ -144,10 +144,10 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <input type="number" step="0.01" min="0" max="1" oninput="if(this.value > 1) this.value = 1; if(this.value < 0) this.value = 0;" class="form-control form-control-sm w-75 fw-bold text-primary weight-overall" name="materials[<?= $mat['id'] ?>][overall_weight]" value="<?= htmlspecialchars($mat['overall_weight']) ?>">
                                     </td>
                                     <td class="align-middle">
-                                        <input type="number" step="0.01" min="0" max="1" oninput="if(this.value > 1) this.value = 1; if(this.value < 0) this.value = 0;" class="form-control form-control-sm w-75 weight-target" name="materials[<?= $mat['id'] ?>][target_weight]" value="<?= htmlspecialchars($mat['target_weight']) ?>">
+                                        <input type="number" step="0.01" class="form-control form-control-sm w-75 weight-target" name="materials[<?= $mat['id'] ?>][target_weight]" value="<?= htmlspecialchars($mat['target_weight']) ?>">
                                     </td>
                                     <td class="align-middle">
-                                        <input type="number" step="0.01" min="0" max="1" oninput="if(this.value > 1) this.value = 1; if(this.value < 0) this.value = 0;" class="form-control form-control-sm w-75 weight-credit" name="materials[<?= $mat['id'] ?>][credit_weight]" value="<?= htmlspecialchars($mat['credit_weight']) ?>">
+                                        <input type="number" step="0.01" class="form-control form-control-sm w-75 weight-credit" name="materials[<?= $mat['id'] ?>][credit_weight]" value="<?= htmlspecialchars($mat['credit_weight']) ?>">
                                     </td>
                                     <td class="align-middle">
                                         <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size: 0.7rem;" onclick="normalizeRow(this)">Normalize Row</button>
