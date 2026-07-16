@@ -116,7 +116,8 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </button>
                 </div>
                 <div class="card-body p-0">
-                    <form method="POST">
+                    <form method="POST" id="materialsForm">
+                        <div id="materialsError" class="alert alert-danger mx-4 mt-3 d-none"></div>
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
@@ -137,13 +138,13 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         </div>
                                     </td>
                                     <td class="align-middle">
-                                        <input type="number" step="0.01" class="form-control form-control-sm w-75 fw-bold text-primary" name="materials[<?= $mat['id'] ?>][overall_weight]" value="<?= htmlspecialchars($mat['overall_weight']) ?>">
+                                        <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm w-75 fw-bold text-primary weight-overall" name="materials[<?= $mat['id'] ?>][overall_weight]" value="<?= htmlspecialchars($mat['overall_weight']) ?>">
                                     </td>
                                     <td class="align-middle">
-                                        <input type="number" step="0.01" class="form-control form-control-sm w-75" name="materials[<?= $mat['id'] ?>][target_weight]" value="<?= htmlspecialchars($mat['target_weight']) ?>">
+                                        <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm w-75 weight-target" name="materials[<?= $mat['id'] ?>][target_weight]" value="<?= htmlspecialchars($mat['target_weight']) ?>">
                                     </td>
                                     <td class="align-middle">
-                                        <input type="number" step="0.01" class="form-control form-control-sm w-75" name="materials[<?= $mat['id'] ?>][credit_weight]" value="<?= htmlspecialchars($mat['credit_weight']) ?>">
+                                        <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm w-75 weight-credit" name="materials[<?= $mat['id'] ?>][credit_weight]" value="<?= htmlspecialchars($mat['credit_weight']) ?>">
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -185,5 +186,41 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('materialsForm').addEventListener('submit', function(e) {
+            let overallSum = 0;
+            let errorMsg = '';
+            
+            // Calculate sum of active overall weights
+            document.querySelectorAll('.form-switch input[type="checkbox"]').forEach(function(checkbox) {
+                if (checkbox.checked) {
+                    const row = checkbox.closest('tr');
+                    const overallInput = row.querySelector('.weight-overall');
+                    const targetInput = row.querySelector('.weight-target');
+                    const creditInput = row.querySelector('.weight-credit');
+                    
+                    overallSum += parseFloat(overallInput.value || 0);
+                    
+                    const rowSum = parseFloat(targetInput.value || 0) + parseFloat(creditInput.value || 0);
+                    // allow a tiny margin of error for floating point
+                    if (Math.abs(rowSum - 1.0) > 0.01) {
+                        const matName = row.querySelector('td:first-child').innerText;
+                        errorMsg += `Target + Credit weight for ${matName} must equal exactly 1.0.<br>`;
+                    }
+                }
+            });
+            
+            if (Math.abs(overallSum - 1.0) > 0.01) {
+                errorMsg += 'The sum of all active Overall Weights must equal exactly 1.0.';
+            }
+            
+            if (errorMsg !== '') {
+                e.preventDefault();
+                const errorDiv = document.getElementById('materialsError');
+                errorDiv.innerHTML = errorMsg;
+                errorDiv.classList.remove('d-none');
+            }
+        });
+    </script>
 </body>
 </html>
