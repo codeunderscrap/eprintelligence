@@ -11,9 +11,8 @@ $scoring = getScoringData($pdo);
 $activeMaterials = $scoring['active_materials'];
 $companyRawScores = $scoring['company_raw_scores'];
 $companyMatData = $scoring['company_mat_data'];
-$maxRawScore = $scoring['max_raw_score'];
 
-// 5. Fetch all companies, apply 1-100 scaling, and sort
+// 5. Fetch all companies, apply absolute score, and sort
 $stmt = $pdo->query("SELECT * FROM companies");
 $companiesRaw = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -22,10 +21,7 @@ foreach ($companiesRaw as $c) {
     $cId = $c['id'];
     // Only include companies that have active material data
     if (isset($companyRawScores[$cId])) {
-        $rawScore = $companyRawScores[$cId];
-        $scaledScore = $maxRawScore > 0 ? ($rawScore / $maxRawScore) * 100 : 0;
-        
-        $c['priority_score'] = $scaledScore;
+        $c['priority_score'] = $companyRawScores[$cId];
         $c['materials'] = $companyMatData[$cId] ?? [];
         $companies[] = $c;
     }
@@ -73,7 +69,7 @@ usort($companies, function($a, $b) {
                                         <th class="text-center bg-light"><?= htmlspecialchars($mat['name']) ?></th>
                                     <?php endforeach; ?>
                                     <th style="width: 12%;">Priority Score 
-                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Scaled 1-100 based on normalized material averages and Admin weights">?</span>
+                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Absolute Score (1-100) based on Z-Scores and dynamically normalized Overall Weights">?</span>
                                     </th>
                                     <th style="width: 15%;">Action</th>
                                 </tr>

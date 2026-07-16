@@ -23,9 +23,7 @@ if (!$company) {
 
 $scoring = getScoringData($pdo);
 $companyMaterials = $scoring['company_mat_data'][$companyId] ?? [];
-$rawScore = $scoring['company_raw_scores'][$companyId] ?? 0;
-$maxRawScore = $scoring['max_raw_score'];
-$totalScore = $maxRawScore > 0 ? ($rawScore / $maxRawScore) * 100 : 0;
+$totalScore = $scoring['company_raw_scores'][$companyId] ?? 0;
 
 
 $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] == 1;

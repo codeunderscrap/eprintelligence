@@ -58,57 +58,68 @@ function getScoringData($pdo) {
         return (($z + 3) / 6) * 99 + 1;
     };
 
-    // 4. Calculate Z-Scores, Map to 1-100, and Apply Weights
+    // 4. Group data by company to determine active materials and calculate scores
     $companyRawScores = [];
     $companyMatData = [];
-
+    
+    // Group rows by company first
+    $companiesData = [];
     foreach ($rawMatData as $row) {
         $cId = $row['company_id'];
-        $mId = $row['material_id'];
-        $mName = $row['name'];
-        $stats = $materialStats[$mId];
-        
-        // Calculate Z-Score
-        $zTarget = ($row['target_tons'] - $stats['mean_target']) / $stats['stddev_target'];
-        $zCredits = ($row['credits'] - $stats['mean_credits']) / $stats['stddev_credits'];
-        
-        // Map to 1-100 Score
-        $scoreTarget100 = $zTo100($zTarget);
-        $scoreCredits100 = $zTo100($zCredits);
-        
-        // Material Composite Score (1-100)
-        $materialCompositeScore = ($scoreTarget100 * $row['target_weight']) + ($scoreCredits100 * $row['credit_weight']);
-        
-        // Apply Overall Material Weight to the Global Score
-        $contributionToGlobal = $materialCompositeScore * $row['overall_weight'];
-        
-        if (!isset($companyRawScores[$cId])) {
-            $companyRawScores[$cId] = 0;
-        }
-        $companyRawScores[$cId] += $contributionToGlobal;
-        
-        $companyMatData[$cId][$mName] = [
-            'target' => $row['target_tons'],
-            'credits' => $row['credits'],
-            'z_score_scaled_100' => $materialCompositeScore,
-            'contribution_to_global' => $contributionToGlobal
-        ];
+        $companiesData[$cId][] = $row;
     }
-    
-    // Determine the Max Raw Global Score for final 1-100 Global Scaling
-    $maxRawScore = 0;
-    foreach ($companyRawScores as $score) {
-        if ($score > $maxRawScore) {
-            $maxRawScore = $score;
+
+    foreach ($companiesData as $cId => $companyRows) {
+        // Find sum of overall weights for this specific company's active materials
+        $companyTotalWeight = 0;
+        foreach ($companyRows as $row) {
+            $companyTotalWeight += $row['overall_weight'];
         }
+        
+        $companyAbsoluteScore = 0;
+        
+        foreach ($companyRows as $row) {
+            $mId = $row['material_id'];
+            $mName = $row['name'];
+            $stats = $materialStats[$mId];
+            
+            // Auto-Normalize the Overall Weight so they sum to 1.0 for this company
+            $normalizedOverallWeight = $companyTotalWeight > 0 ? ($row['overall_weight'] / $companyTotalWeight) : 0;
+            
+            // Calculate Z-Score
+            $zTarget = ($row['target_tons'] - $stats['mean_target']) / $stats['stddev_target'];
+            $zCredits = ($row['credits'] - $stats['mean_credits']) / $stats['stddev_credits'];
+            
+            // Map to 1-100 Score
+            $scoreTarget100 = $zTo100($zTarget);
+            $scoreCredits100 = $zTo100($zCredits);
+            
+            // Material Composite Score (1-100)
+            $materialCompositeScore = ($scoreTarget100 * $row['target_weight']) + ($scoreCredits100 * $row['credit_weight']);
+            
+            // Apply Dynamic Normalized Overall Material Weight
+            $contributionToGlobal = $materialCompositeScore * $normalizedOverallWeight;
+            
+            $companyAbsoluteScore += $contributionToGlobal;
+            
+            $companyMatData[$cId][$mName] = [
+                'target' => $row['target_tons'],
+                'credits' => $row['credits'],
+                'z_score_scaled_100' => $materialCompositeScore,
+                'normalized_overall_weight' => $normalizedOverallWeight,
+                'contribution_to_global' => $contributionToGlobal
+            ];
+        }
+        
+        // This is now an absolute 0-100 grade
+        $companyRawScores[$cId] = $companyAbsoluteScore;
     }
 
     return [
         'active_materials' => $activeMaterials,
         'material_stats' => $materialStats,
         'company_raw_scores' => $companyRawScores,
-        'company_mat_data' => $companyMatData,
-        'max_raw_score' => $maxRawScore
+        'company_mat_data' => $companyMatData
     ];
 }
 ?>
