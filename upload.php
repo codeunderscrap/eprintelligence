@@ -118,6 +118,31 @@ $activeMaterials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </form>
                 </div>
             </div>
+
+            <!-- Uploaded Datasets Status -->
+            <div class="card shadow-sm mt-4" style="max-width: 600px;">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0 text-primary"><i class="bi bi-database-check me-2"></i>Dataset Upload Status</h6>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        <?php
+                        $statStmt = $pdo->query("SELECT m.name, COUNT(cm.company_id) as company_count FROM materials m LEFT JOIN company_materials cm ON m.id = cm.material_id GROUP BY m.id ORDER BY m.name ASC");
+                        $stats = $statStmt->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($stats as $stat): 
+                            $badgeClass = $stat['company_count'] > 0 ? 'bg-success' : 'bg-secondary';
+                        ?>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <?= htmlspecialchars($stat['name']) ?>
+                                <span class="badge <?= $badgeClass ?> rounded-pill">
+                                    <?= $stat['company_count'] > 0 ? $stat['company_count'] . ' Companies Uploaded' : 'No Data Uploaded' ?>
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            </div>
+
         </div>
     </div>
 </body>

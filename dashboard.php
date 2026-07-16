@@ -53,7 +53,7 @@ $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <th>Target (Tons)</th>
                                     <th>Credits</th>
                                     <th>Priority Score 
-                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Calculated dynamically based on active materials and Admin weights">?</span>
+                                        <span class="badge rounded-pill bg-secondary ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: SUM((Material Target × Target Weight) + (Material Credits × Credit Weight)) for all active materials">?</span>
                                     </th>
                                     <th>Action</th>
                                 </tr>
