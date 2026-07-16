@@ -16,18 +16,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $message = "API Keys updated successfully!";
     } elseif (isset($_POST['materials'])) {
-        $stmt = $pdo->prepare("UPDATE materials SET is_active = ?, target_weight = ?, credit_weight = ? WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE materials SET is_active = ?, target_weight = ?, credit_weight = ?, overall_weight = ? WHERE id = ?");
         foreach ($_POST['materials'] as $id => $data) {
             $isActive = isset($data['is_active']) ? 1 : 0;
             $targetWeight = (float)$data['target_weight'];
             $creditWeight = (float)$data['credit_weight'];
-            $stmt->execute([$isActive, $targetWeight, $creditWeight, $id]);
+            $overallWeight = (float)$data['overall_weight'];
+            $stmt->execute([$isActive, $targetWeight, $creditWeight, $overallWeight, $id]);
         }
         $message = "Material Settings updated successfully!";
     } elseif (isset($_POST['new_material'])) {
         $name = trim($_POST['new_material_name']);
         if (!empty($name)) {
-            $stmt = $pdo->prepare("INSERT IGNORE INTO materials (name, is_active, target_weight, credit_weight) VALUES (?, 1, 1.0, 0.5)");
+            $stmt = $pdo->prepare("INSERT IGNORE INTO materials (name, is_active, target_weight, credit_weight, overall_weight) VALUES (?, 1, 1.0, 0.5, 1.0)");
             $stmt->execute([$name]);
             $message = "New material added successfully!";
         }
@@ -106,7 +107,8 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <h5 class="mb-0 text-primary"><i class="bi bi-box me-2"></i>Material Management & Priority Weights</h5>
                         <p class="text-muted small mt-1 mb-0">Configure which materials are tracked and their priority calculation weights.</p>
                         <div class="alert alert-info py-2 px-3 mt-2 mb-0 small">
-                            <strong>Priority Score Formula (Scaled 1-100):</strong> <code>SUM( ((Target / Global Avg Target) × Target Weight) + ... )</code> scaled against the max score.
+                            <strong>Priority Score Formula (Scaled 1-100):</strong> <code>SUM( [Z-Score(Target) × Target Weight + Z-Score(Credits) × Credit Weight] × Overall Weight )</code>
+                            <br><small class="fst-italic text-muted mt-1 d-block">* Tip: For mathematical purity, Target Weight + Credit Weight should equal 1.0.</small>
                         </div>
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
@@ -120,6 +122,7 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <tr>
                                     <th class="ps-4">Material Name</th>
                                     <th>Active</th>
+                                    <th>Overall Weight</th>
                                     <th>Target Weight</th>
                                     <th>Credit Weight</th>
                                 </tr>
@@ -132,6 +135,9 @@ $materials = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" name="materials[<?= $mat['id'] ?>][is_active]" <?= $mat['is_active'] ? 'checked' : '' ?>>
                                         </div>
+                                    </td>
+                                    <td class="align-middle">
+                                        <input type="number" step="0.01" class="form-control form-control-sm w-75 fw-bold text-primary" name="materials[<?= $mat['id'] ?>][overall_weight]" value="<?= htmlspecialchars($mat['overall_weight']) ?>">
                                     </td>
                                     <td class="align-middle">
                                         <input type="number" step="0.01" class="form-control form-control-sm w-75" name="materials[<?= $mat['id'] ?>][target_weight]" value="<?= htmlspecialchars($mat['target_weight']) ?>">

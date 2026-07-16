@@ -144,8 +144,8 @@ $aiData = getCompanyResearch($pdo, $company, $forceRefresh);
                                     <td><?= number_format($matData['credits'], 2) ?></td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <strong class="text-dark me-2"><?= number_format($matData['normalized_score'], 2) ?></strong>
-                                            <small class="text-muted" style="font-size: 0.75rem;">(Normalized Points)</small>
+                                            <strong class="text-dark me-2"><?= number_format($matData['contribution_to_global'], 2) ?></strong>
+                                            <small class="text-muted" style="font-size: 0.75rem;" data-bs-toggle="tooltip" title="Z-Score(1-100): <?= number_format($matData['z_score_scaled_100'], 2) ?>">(Global Points)</small>
                                         </div>
                                     </td>
                                 </tr>

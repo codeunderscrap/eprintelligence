@@ -1,69 +1,111 @@
 <?php
 function getScoringData($pdo) {
-    // 1. Fetch all active materials
-    $stmtMat = $pdo->query("SELECT id, name, target_weight, credit_weight FROM materials WHERE is_active = 1 ORDER BY id ASC");
+    // 1. Fetch all active materials including overall_weight
+    $stmtMat = $pdo->query("SELECT id, name, target_weight, credit_weight, overall_weight FROM materials WHERE is_active = 1 ORDER BY id ASC");
     $activeMaterials = $stmtMat->fetchAll(PDO::FETCH_ASSOC);
 
     // 2. Fetch specific material targets/credits for all companies
     $stmtData = $pdo->query("
-        SELECT cm.company_id, cm.material_id, m.name, m.target_weight, m.credit_weight, cm.target_tons, cm.credits
+        SELECT cm.company_id, cm.material_id, m.name, m.target_weight, m.credit_weight, m.overall_weight, cm.target_tons, cm.credits
         FROM company_materials cm
         JOIN materials m ON cm.material_id = m.id
         WHERE m.is_active = 1
     ");
     $rawMatData = $stmtData->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Calculate Global Averages per active material
-    $materialAverages = [];
+    // 3. Calculate Global Averages and Standard Deviations per active material
+    $materialStats = [];
     foreach ($activeMaterials as $mat) {
         $mId = $mat['id'];
+        
+        // Pass 1: Calculate Mean
         $sumT = 0; $countT = 0;
         $sumC = 0; $countC = 0;
-        
         foreach ($rawMatData as $row) {
             if ($row['material_id'] == $mId) {
                 if ($row['target_tons'] > 0) { $sumT += $row['target_tons']; $countT++; }
                 if ($row['credits'] > 0) { $sumC += $row['credits']; $countC++; }
             }
         }
-        $materialAverages[$mId]['avg_target'] = $countT > 0 ? ($sumT / $countT) : 1; 
-        $materialAverages[$mId]['avg_credits'] = $countC > 0 ? ($sumC / $countC) : 1;
+        $meanT = $countT > 0 ? ($sumT / $countT) : 0;
+        $meanC = $countC > 0 ? ($sumC / $countC) : 0;
+        
+        // Pass 2: Calculate Variance & Standard Deviation
+        $varSumT = 0;
+        $varSumC = 0;
+        foreach ($rawMatData as $row) {
+            if ($row['material_id'] == $mId) {
+                if ($row['target_tons'] > 0) { $varSumT += pow($row['target_tons'] - $meanT, 2); }
+                if ($row['credits'] > 0) { $varSumC += pow($row['credits'] - $meanC, 2); }
+            }
+        }
+        $stdDevT = $countT > 0 ? sqrt($varSumT / $countT) : 0;
+        $stdDevC = $countC > 0 ? sqrt($varSumC / $countC) : 0;
+        
+        $materialStats[$mId] = [
+            'mean_target' => $meanT,
+            'stddev_target' => $stdDevT > 0 ? $stdDevT : 1, // Prevent division by zero
+            'mean_credits' => $meanC,
+            'stddev_credits' => $stdDevC > 0 ? $stdDevC : 1
+        ];
     }
 
-    // 4. Calculate Raw Normalized Score for each company
+    // Helper: Map Z-score to 1-100 scale (Assuming Z=-3 is 1, Z=0 is 50, Z=+3 is 100)
+    $zTo100 = function($z) {
+        // Cap Z between -3 and +3
+        $z = max(-3, min(3, $z));
+        // Linear mapping: (Z + 3) / 6 * 99 + 1
+        return (($z + 3) / 6) * 99 + 1;
+    };
+
+    // 4. Calculate Z-Scores, Map to 1-100, and Apply Weights
     $companyRawScores = [];
     $companyMatData = [];
-    $maxRawScore = 0;
 
     foreach ($rawMatData as $row) {
         $cId = $row['company_id'];
         $mId = $row['material_id'];
         $mName = $row['name'];
+        $stats = $materialStats[$mId];
         
-        $normalizedTarget = $row['target_tons'] / $materialAverages[$mId]['avg_target'];
-        $normalizedCredits = $row['credits'] / $materialAverages[$mId]['avg_credits'];
+        // Calculate Z-Score
+        $zTarget = ($row['target_tons'] - $stats['mean_target']) / $stats['stddev_target'];
+        $zCredits = ($row['credits'] - $stats['mean_credits']) / $stats['stddev_credits'];
         
-        $matScore = ($normalizedTarget * $row['target_weight']) + ($normalizedCredits * $row['credit_weight']);
+        // Map to 1-100 Score
+        $scoreTarget100 = $zTo100($zTarget);
+        $scoreCredits100 = $zTo100($zCredits);
+        
+        // Material Composite Score (1-100)
+        $materialCompositeScore = ($scoreTarget100 * $row['target_weight']) + ($scoreCredits100 * $row['credit_weight']);
+        
+        // Apply Overall Material Weight to the Global Score
+        $contributionToGlobal = $materialCompositeScore * $row['overall_weight'];
         
         if (!isset($companyRawScores[$cId])) {
             $companyRawScores[$cId] = 0;
         }
-        $companyRawScores[$cId] += $matScore;
-        
-        if ($companyRawScores[$cId] > $maxRawScore) {
-            $maxRawScore = $companyRawScores[$cId];
-        }
+        $companyRawScores[$cId] += $contributionToGlobal;
         
         $companyMatData[$cId][$mName] = [
             'target' => $row['target_tons'],
             'credits' => $row['credits'],
-            'normalized_score' => $matScore
+            'z_score_scaled_100' => $materialCompositeScore,
+            'contribution_to_global' => $contributionToGlobal
         ];
+    }
+    
+    // Determine the Max Raw Global Score for final 1-100 Global Scaling
+    $maxRawScore = 0;
+    foreach ($companyRawScores as $score) {
+        if ($score > $maxRawScore) {
+            $maxRawScore = $score;
+        }
     }
 
     return [
         'active_materials' => $activeMaterials,
-        'material_averages' => $materialAverages,
+        'material_stats' => $materialStats,
         'company_raw_scores' => $companyRawScores,
         'company_mat_data' => $companyMatData,
         'max_raw_score' => $maxRawScore
