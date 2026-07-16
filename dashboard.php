@@ -90,7 +90,7 @@ usort($companies, function($a, $b) {
                                                         echo "<td class='text-center align-middle bg-light bg-opacity-50'>
                                                                 <div class='d-inline-flex flex-column gap-1 text-start' style='min-width: 90px;'>
                                                                     <span class='badge bg-white text-dark border shadow-sm w-100 text-start'><span class='text-primary fw-bold me-1'>T:</span> {$t}</span>
-                                                                    <span class='badge bg-white text-dark border shadow-sm w-100 text-start'><span class='text-success fw-bold me-1'>C:</span> {$cr}</span>
+                                                                    <span class='badge bg-white text-dark border shadow-sm w-100 text-start'><span class='text-success fw-bold me-1'>A:</span> {$cr}</span>
                                                                 </div>
                                                               </td>";
                                                     } else {
